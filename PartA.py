@@ -12,6 +12,8 @@ from sklearn.metrics import hamming_loss,f1_score,accuracy_score,zero_one_loss,j
 from sklearn.naive_bayes import MultinomialNB, GaussianNB
 import time
 from sklearn.pipeline import make_pipeline
+import seaborn as sns
+import matplotlib.pyplot as plt
 
 #Paths for labels
 tlblfile = './Delicious/test-label.dat'
@@ -22,6 +24,13 @@ testLabel = np.loadtxt(tlblfile)#load label for test
 y_train=sp.csr_matrix(trainLabel)
 y_test=sp.csr_matrix(testLabel)
 
+#variable to store results
+acc=[]
+ham_loss=[]
+f1_micro=[]
+f1_macro=[]
+method=[]
+results = pd.DataFrame(columns=['Method', 'acc_score', 'hamming_loss','f1-micro','f1-macro'])
 #print results
 def print_results(clf, label='DEFAULT',Method='DEFAULT'):
 	print('********* ' + label+"-"+Method + " *********")
@@ -30,6 +39,13 @@ def print_results(clf, label='DEFAULT',Method='DEFAULT'):
 	print("hamming_loss: %f"%(hamming_loss(y_test, predictions)))
 	print("f1_score_micro: %f"%(f1_score(y_test, predictions, average="micro")))
 	print("f1_score_macro: %f"%(f1_score(y_test, predictions, average="macro")))
+
+	method_name=label+"-"+Method
+	method.append(method_name)
+	acc.append(accuracy_score(y_test, predictions))
+	ham_loss.append(hamming_loss(y_test, predictions))
+	f1_micro.append(f1_score(y_test, predictions, average="micro"))
+	f1_macro.append(f1_score(y_test, predictions, average="macro"))
 
 #fit models
 def fit_clf(*args):
@@ -94,17 +110,71 @@ X_test= np.delete(X_test, (0), axis=0)
 #print(X_test.shape)
 
 para= [
-
-	{'name': 'Tree', 'obj': tree.DecisionTreeClassifier()},
-	{'name': 'Naive bayes', 'obj':MultinomialNB(alpha=0.7)},
-	{'name': 'SVM', 'obj': SVC()},
+	#{'name': 'Tree', 'obj': tree.DecisionTreeClassifier(random_state=0)},
+	{'name': 'NB', 'obj':MultinomialNB(alpha=0.7)},
+	#{'name': 'SVM', 'obj': SVC(random_state=0)},
 ]
 
 for p in para:
 	clfs = [
-		{'name': 'Classifier Chain', 'obj': ClassifierChain(p['obj'])},
-		{'name': 'Binary Relevance', 'obj': BinaryRelevance(classifier =p['obj'], require_dense = [True, True])},
-		{'name': 'Label PowerSet', 'obj': LabelPowerset(p['obj'])}
+		{'name': 'CC', 'obj': ClassifierChain(p['obj'])},
+		{'name': 'BR', 'obj': BinaryRelevance(classifier =p['obj'], require_dense = [True, True])},
+		{'name': 'LP', 'obj': LabelPowerset(p['obj'])}
 	]
 	for c in clfs:
 		print_results(fit_clf(c['obj']), c['name'],p['name'])  # print results
+
+results["acc_score"]=acc
+results["Method"]=method
+results["hamming_loss"]=ham_loss
+results["f1-micro"]=f1_micro
+results["f1-macro"]=f1_macro
+print(results)
+
+#Plot accuracy of models
+results = results.sort_values(['acc_score'])
+colors = sns.color_palette()
+ind = np.arange(results.shape[0])
+ax = plt.subplot(111)
+b = ax.bar(ind - 0.3, results['acc_score'], 0.6, label='acc_score', color=colors[0])
+plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+ax.set_xlim([-0.5, ind[-1] + .5])
+ax.set_xticks(ind)
+ax.set_xticklabels(results.Method)
+plt.show()
+
+#plot hamming loss
+results = results.sort_values(['hamming_loss'])
+colors = sns.color_palette()
+ind = np.arange(results.shape[0])
+ax = plt.subplot(111)
+b = ax.bar(ind - 0.3, results['hamming_loss'], 0.6, label='hamming_loss', color=colors[0])
+plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+ax.set_xlim([-0.5, ind[-1] + .5])
+ax.set_xticks(ind)
+ax.set_xticklabels(results.Method)
+plt.show()
+
+#plot f1-micro
+results = results.sort_values(['f1-micro'])
+colors = sns.color_palette()
+ind = np.arange(results.shape[0])
+ax = plt.subplot(111)
+b = ax.bar(ind - 0.3, results['f1-micro'], 0.6, label='f1-micro', color=colors[0])
+plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+ax.set_xlim([-0.5, ind[-1] + .5])
+ax.set_xticks(ind)
+ax.set_xticklabels(results.Method)
+plt.show()
+
+#plot f1-macro
+results = results.sort_values(['f1-macro'])
+colors = sns.color_palette()
+ind = np.arange(results.shape[0])
+ax = plt.subplot(111)
+b = ax.bar(ind - 0.3, results['f1-micro'], 0.6, label='f1-macro', color=colors[0])
+plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+ax.set_xlim([-0.5, ind[-1] + .5])
+ax.set_xticks(ind)
+ax.set_xticklabels(results.Method)
+plt.show()

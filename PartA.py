@@ -110,9 +110,9 @@ X_test= np.delete(X_test, (0), axis=0)
 #print(X_test.shape)
 
 para= [
-	#{'name': 'Tree', 'obj': tree.DecisionTreeClassifier(random_state=0)},
+	{'name': 'Tree', 'obj': tree.DecisionTreeClassifier(random_state=0)},
 	{'name': 'NB', 'obj':MultinomialNB(alpha=0.7)},
-	#{'name': 'SVM', 'obj': SVC(random_state=0)},
+	{'name': 'SVM', 'obj': SVC(random_state=0)},
 ]
 
 for p in para:

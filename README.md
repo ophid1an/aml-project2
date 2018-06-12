@@ -5,5 +5,5 @@ Using [DeliciousMIL](https://github.com/hsoleimani/MLTM/tree/master/Data) datase
 
 ## Contributors
 * [Aristeidis Bozas](https://github.com/arbozas)
-* [Nikos Pazaras](https://github.com/nikospaz)
+* [Nikolaos Pazaras](https://github.com/nikospaz)
 

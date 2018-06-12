@@ -1,10 +1,8 @@
-import re
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy.sparse as sp
 from sklearn import tree
 from sklearn.metrics import hamming_loss, f1_score, accuracy_score
 from sklearn.naive_bayes import MultinomialNB
@@ -12,6 +10,8 @@ from sklearn.svm import SVC
 from skmultilearn.problem_transform import BinaryRelevance, LabelPowerset, ClassifierChain
 
 RANDOM_STATE = 0
+VOCAB_SIZE = 8520
+WRITE_RESULTS = False
 
 # Paths for labels files
 trainLabelPath = './Delicious/train-label.dat'
@@ -21,10 +21,9 @@ testLabelPath = './Delicious/test-label.dat'
 trainPath = './Delicious/train-data.dat'
 testPath = './Delicious/test-data.dat'
 
-trainLabel = np.loadtxt(trainLabelPath)  # load labels for train
-testLabel = np.loadtxt(testLabelPath)  # load label for test
-y_train = sp.csr_matrix(trainLabel)
-y_test = sp.csr_matrix(testLabel)
+# Load labels
+y_train = np.loadtxt(trainLabelPath)  # load labels for train
+y_test = np.loadtxt(testLabelPath)  # load label for test
 
 # Dataframe to store results
 columns = ['accuracy', 'hamming_loss', 'f1_micro', 'f1_macro']
@@ -32,39 +31,22 @@ results = pd.DataFrame()
 
 
 # Data transformation function
-# use this to transform train-data.dat ,test-data.dat and pad sentences length
-def data(file, path):
-    fw = open(path, "w+")
+def transform_data(source):
+    stream = open(source)
     docs = []
-    wordc = 0
-    fp = open(file)
-    count = 0
     while True:
-        ln = fp.readline()
+        ln = stream.readline()
         if len(ln) == 0:
             break
-        sents = re.findall('<[0-9]*?>([0-9 ]*)', ln)
-        for n, i in enumerate(sents):
-            words = i.split()
-            if count == 0:
-                wordc += len(words)
-                if n >= 1:
-                    txt = ' '.join(['%s' % (int(w)) for w in words])
-                    txt.strip()
-                    fw.write(txt + " ")
-                elif n == 0:
-                    wordnumber = 279 - wordc
-                    for i in range(wordnumber):
-                        fw.write("0 ")
-                    fw.write("\n")
-                    wordc = 0
-    if path == pathtest:
-        for i in range(260):
-            fw.write("0 ")
-    elif path == pathtrain:
-        for i in range(253):
-            fw.write("0 ")
-    fp.close()
+        doc = np.zeros(VOCAB_SIZE, int)
+        words = filter(lambda x: x[0] != '<', ln.rstrip('\n').split(' '))
+        for w in words:
+            doc[int(w)] += 1
+        docs.append(doc)
+
+    stream.close()
+
+    docs = np.array(docs)
     return docs
 
 
@@ -88,24 +70,15 @@ def plot_score(results, score):
     ind = np.arange(results.shape[0])
     width = 0.6
 
-    plt.title(score)
+    plt.ylabel(score)
     plt.xticks(ind, results.index.values)
     plt.bar(ind, results[score], width)
     plt.show()
 
 
-# paths for write new data
-pathtest = "./Delicious/testData.txt"
-pathtrain = "./Delicious/trainData.txt"
-
-# if used they ruin the last sentences  of each need  extra zeros to reach 280 words per line
-data(testPath, pathtest)
-data(trainPath, pathtrain)
-
-X_train = np.loadtxt(pathtrain)  # load new data for train
-X_train = np.delete(X_train, 0, axis=0)
-X_test = np.loadtxt(pathtest)  # load  new data for test
-X_test = np.delete(X_test, 0, axis=0)
+# Transform data
+X_train = pd.DataFrame(transform_data(trainPath))
+X_test = pd.DataFrame(transform_data(testPath))
 
 classifiers = [
     {'name': 'Tree', 'obj': tree.DecisionTreeClassifier(random_state=RANDOM_STATE)},
@@ -114,9 +87,9 @@ classifiers = [
 ]
 
 methods = [
-    {'name': 'CC', 'obj': lambda p: ClassifierChain(p)},
-    {'name': 'BR', 'obj': lambda p: BinaryRelevance(classifier=p, require_dense=[True, True])},
-    {'name': 'LP', 'obj': lambda p: LabelPowerset(p)}
+    {'name': 'CC', 'obj': lambda clf: ClassifierChain(classifier=clf, require_dense=[False, True])},
+    {'name': 'BR', 'obj': lambda clf: BinaryRelevance(classifier=clf, require_dense=[False, True])},
+    {'name': 'LP', 'obj': lambda clf: LabelPowerset(classifier=clf, require_dense=[False, True])}
 ]
 
 for clf in classifiers:
@@ -124,7 +97,7 @@ for clf in classifiers:
         start = time.time()
         # Append classifier results to results
         clf_results = predict_results((method['obj'](clf['obj'])).fit(X_train, y_train),
-                                      clf['name'] + ' - ' + method['name'])
+                                      clf['name'] + '-' + method['name'])
         results = results.append(clf_results)
         # Print classifier results
         print(clf_results)
@@ -137,3 +110,7 @@ print(results)
 # Plot scores
 for score in columns:
     plot_score(results, score)
+
+if WRITE_RESULTS:
+    filename = 'results-partA.csv'
+    results.round(decimals=4).to_csv(filename)

@@ -32,19 +32,16 @@ results = pd.DataFrame()
 
 # Data transformation function
 def transform_data(source):
-    stream = open(source)
-    docs = []
-    while True:
-        ln = stream.readline()
-        if len(ln) == 0:
-            break
-        doc = np.zeros(VOCAB_SIZE, int)
-        words = filter(lambda x: x[0] != '<', ln.rstrip('\n').split(' '))
-        for w in words:
-            doc[int(w)] += 1
-        docs.append(doc)
-
-    stream.close()
+    with open(source) as fp:
+        line = fp.readline()
+        docs = []
+        while line:
+            doc = np.zeros(VOCAB_SIZE, int)
+            words = filter(lambda x: x[0] != '<', line.rstrip('\n').split(' '))
+            for w in words:
+                doc[int(w)] += 1
+            docs.append(doc)
+            line = fp.readline()
 
     docs = np.array(docs)
     return docs

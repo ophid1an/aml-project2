@@ -6,10 +6,7 @@ import scipy.sparse as sp
 from sklearn.metrics import accuracy_score
 from sklearn.utils import resample
 
-from CKNN import CKNN
-
 from CitationKNN import CitationKNN
-from KNN import KNN
 
 RANDOM_STATE = 0
 VOCAB_SIZE = 8520
@@ -73,29 +70,9 @@ y_test = pd.read_table(testLabelPath, delimiter=' ', header=None).iloc[:, most_c
 X_train, y_train = resample(X_train, y_train, replace=False, n_samples=TRAIN_SAMPLES, random_state=RANDOM_STATE)
 X_test, y_test = resample(X_test, y_test, replace=False, n_samples=TEST_SAMPLES, random_state=RANDOM_STATE)
 
-# # Apply k-NN
-# neighbors = range(1, 21)
-#
-# print('k-NN\n')
-# for k in neighbors:
-#     print('Using %2d neighbor(s)' % k)
-#     start = time.time()
-#     clf = KNN()
-#     clf.fit(X_train, y_train, k=k)
-#     y_pred = clf.predict(X_test)
-#     stop = time.time()
-#     print('Accuracy: %.3f' % (accuracy_score(y_test, y_pred)))
-#     print('\nTime: %.3f\n' % (stop - start))
-#
-
-
-# Needed for CKNN
-y_train = y_train.replace(0, -1)
-y_test = y_test.replace(0, -1)
-
 # Apply CKNN
-references = [5, 11, 21, 31, 41]
-citers = [5, 11, 15, 21]
+references = [1, 3, 5, 7, 9]
+citers = [1, 2, 3, 4, 5]
 
 print('Citation-kNN')
 print('************')

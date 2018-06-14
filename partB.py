@@ -1,56 +1,112 @@
-import pandas as pd
+import time
+
 import numpy as np
-from sklearn.cluster import KMeans
+import pandas as pd
+import scipy.sparse as sp
+from sklearn.metrics import accuracy_score
+from sklearn.utils import resample
 
-# TODO: Parse correctly
-# train = pa.read_table("./Delicious/train-data.dat", delimiter=' ', header=None)
-# test = pa.read_table("./Delicious/test-data.dat", delimiter=' ', header=None)
+from CKNN import CKNN
 
-x_train = pd.read_table("train.dat", encoding='utf_8', header=None)
-x_test = pd.read_table("test.dat", encoding='utf_8', header=None)
+from CitationKNN import CitationKNN
+from KNN import KNN
 
-x_train = x_train.replace(np.nan, 0)
-x_test = x_test.replace(np.nan, 0)
+RANDOM_STATE = 0
+VOCAB_SIZE = 8520
+TRAIN_SAMPLES = 100
+TEST_SAMPLES = 100
 
-df = pd.read_table('./Delicious/train-label.dat', delimiter=' ', header=None)
-df2 = pd.read_table('./Delicious/test-label.dat', delimiter=' ', header=None)
-df1 = df.sum(axis=0)
-maxClass = df1.argmax()
+# Paths for labels files
+trainLabelPath = './Delicious/train-label.dat'
+testLabelPath = './Delicious/test-label.dat'
 
-y_train = df.iloc[:, maxClass]
-y_test = df2.iloc[:, maxClass]
+# Paths for data files
+trainPath = './Delicious/train-data.dat'
+testPath = './Delicious/test-data.dat'
 
-train_bags = x_train[:-1]
-train_labels = y_train
-test_bags = x_test[:-1]
-test_labels = y_test
 
-# from sklearn.ensemble import RandomForestRegressor
+def transform_data(filepath):
+    with open(filepath) as fp:
+        line = fp.readline()
+        docs = []
+        while line:
+            line_array = line.split(' ')[1:]
+
+            indices = []  # Indices of the first word of each sentence
+            # Populate indices
+            for ind, elem in enumerate(line_array):
+                if elem[0] == '<':
+                    indices.append(ind + 1)
+
+            indices_len = len(indices)
+
+            sentences = []
+            # Populate sentences
+            for i in range(indices_len):
+                if i == indices_len - 1:
+                    sentences.append(line_array[indices[i]:])
+                else:
+                    sentences.append(line_array[indices[i]:indices[i + 1] - 1])
+
+            bag = np.zeros([indices_len, VOCAB_SIZE], int)
+            # Populate bag
+            for i in range(len(sentences)):
+                for elem in sentences[i]:
+                    bag[i][int(elem)] += 1
+
+            docs.append(sp.csr_matrix(bag))
+            line = fp.readline()
+
+    return docs
+
+
+X_train = transform_data(trainPath)
+X_test = transform_data(testPath)
+
+y_train = pd.read_table(trainLabelPath, delimiter=' ', header=None)
+most_common_class = y_train.sum(axis=0).values.argmax()
+
+y_train = y_train.iloc[:, most_common_class]
+y_test = pd.read_table(testLabelPath, delimiter=' ', header=None).iloc[:, most_common_class]
+
+# Resampling
+X_train, y_train = resample(X_train, y_train, replace=False, n_samples=TRAIN_SAMPLES, random_state=RANDOM_STATE)
+X_test, y_test = resample(X_test, y_test, replace=False, n_samples=TEST_SAMPLES, random_state=RANDOM_STATE)
+
+# # Apply k-NN
+# neighbors = range(1, 21)
 #
-# rf = RandomForestRegressor(n_estimators=10, random_state=42)
-# rf.fit(train_bags, train_labels)
-# predictions = rf.predict(test_bags)
-# errors = abs(predictions - test_labels)
-# print('Mean Absolute Error:', round(np.mean(errors), 2), 'degrees.')
-# mape = 100 * (errors / test_labels)
-# accuracy = 100 - np.mean(mape)
-# print('Accuracy:', round(accuracy, 2), '%.')
-
-# from sklearn.ensemble import AdaBoostClassifier
-# from sklearn.tree import DecisionTreeClassifier
+# print('k-NN\n')
+# for k in neighbors:
+#     print('Using %2d neighbor(s)' % k)
+#     start = time.time()
+#     clf = KNN()
+#     clf.fit(X_train, y_train, k=k)
+#     y_pred = clf.predict(X_test)
+#     stop = time.time()
+#     print('Accuracy: %.3f' % (accuracy_score(y_test, y_pred)))
+#     print('\nTime: %.3f\n' % (stop - start))
 #
-# dt = DecisionTreeClassifier()
-# clf = AdaBoostClassifier(n_estimators=100, base_estimator=dt,learning_rate=1)
-# clf.fit(x_train[:-1],y_train)
 
-# from sklearn.naive_bayes import MultinomialNB
-# clf = MultinomialNB().fit(X_train_tfidf, twenty_train.target)
-# text_clf = text_clf.fit(twenty_train.data, twenty_train.target)
-# twenty_test = fetch_20newsgroups(subset='test', shuffle=True)
-# predicted = text_clf.predict(twenty_test.data)
-# np.mean(predicted == twenty_test.target)
 
-# from sklearn.linear_model import SGDClassifier
-# text_clf_svm = text_clf_svm.fit(twenty_train.data, twenty_train.target)
-# predicted_svm = text_clf_svm.predict(twenty_test.data)
-# np.mean(predicted_svm == twenty_test.target)
+# Needed for CKNN
+y_train = y_train.replace(0, -1)
+y_test = y_test.replace(0, -1)
+
+# Apply CKNN
+references = [5, 11, 21, 31, 41]
+citers = [5, 11, 15, 21]
+
+print('Citation-kNN')
+print('************')
+for c in citers:
+    print('\nUsing %d citer(s)' % c)
+    for r in references:
+        print('\n\tUsing %d reference(s)' % r)
+        start = time.time()
+        clf = CitationKNN()
+        clf.fit(X_train, np.array(y_train), references=r, citers=c)
+        y_pred = clf.predict(X_test)
+        stop = time.time()
+        print('\tAccuracy: %.3f' % (accuracy_score(y_test, y_pred)))
+        print('\tTime: %.3f' % (stop - start))
